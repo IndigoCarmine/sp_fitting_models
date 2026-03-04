@@ -100,12 +100,12 @@ plot_curve(defaults)
 
 # Create sliders
 axcolor = "lightgoldenrodyellow"
-ax_co_deltaH = plt.axes([0.25, 0.35, 0.65, 0.03], facecolor=axcolor)
-ax_co_deltaS = plt.axes([0.25, 0.31, 0.65, 0.03], facecolor=axcolor)
-ax_co_deltaHnuc = plt.axes([0.25, 0.27, 0.65, 0.03], facecolor=axcolor)
-ax_iso_deltaH = plt.axes([0.25, 0.19, 0.65, 0.03], facecolor=axcolor)
-ax_iso_deltaS = plt.axes([0.25, 0.15, 0.65, 0.03], facecolor=axcolor)
-ax_concentration = plt.axes([0.25, 0.11, 0.65, 0.03], facecolor=axcolor)
+ax_co_deltaH = plt.axes((0.25, 0.35, 0.65, 0.03), facecolor=axcolor)
+ax_co_deltaS = plt.axes((0.25, 0.31, 0.65, 0.03), facecolor=axcolor)
+ax_co_deltaHnuc = plt.axes((0.25, 0.27, 0.65, 0.03), facecolor=axcolor)
+ax_iso_deltaH = plt.axes((0.25, 0.19, 0.65, 0.03), facecolor=axcolor)
+ax_iso_deltaS = plt.axes((0.25, 0.15, 0.65, 0.03), facecolor=axcolor)
+ax_concentration = plt.axes((0.25, 0.11, 0.65, 0.03), facecolor=axcolor)
 
 s_co_deltaH = Slider(ax_co_deltaH, "Coop ΔH", -120000, 120000, valinit=defaults["co_deltaH"])
 s_co_deltaS = Slider(ax_co_deltaS, "Coop ΔS", -300, 300, valinit=defaults["co_deltaS"])

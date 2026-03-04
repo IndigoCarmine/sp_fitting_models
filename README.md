@@ -201,22 +201,9 @@ python examples/interactive_mixed.py
 - lmfit >= 1.3.4
 - matplotlib >= 3.10.8
 
-## ライセンス / License
+## 引用　/Citation
 
-[To be determined]
+書いていただけるなら嬉しいですが、必ずしも論文で言及する必要はありません。
+ご自由にお使いください。
 
-## 著者 / Author
-
-IndigoCarmine (tamanisikaminai@gmail.com)
-
-## 引用 / Citation
-
-このライブラリを使用した研究を公開する場合は、適切に引用してください。
-
-If you use this library in published research, please cite it appropriately.
-
-## 謝辞 / Acknowledgments
-
-このライブラリは超分子化学の研究を支援するために開発されました。
-
-This library was developed to support research in supramolecular chemistry.
+I would be grateful if you could cite this library in your publications, but it is not mandatory. Please feel free to use it as you see fit.
