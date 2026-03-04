@@ -36,6 +36,7 @@ def inv_isodesmic_model(c_monomer: np.ndarray, K: float) -> np.ndarray:
     """
     if np.any(K * c_monomer > 1):
         raise ValueError("K * c_monomer must be less than 1 for the isodesmic model.")
+
     return c_monomer / (1 - K * c_monomer) ** 2
 
 

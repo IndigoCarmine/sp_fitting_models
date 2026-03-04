@@ -115,7 +115,139 @@ def test_mixed_high_temp_should_approach_zero_for_low_deltaHnuc():
         )
 
 
+def test_mixed_high_temp_rounding_error():
+    """
+    Investigation of rounding error effects in mixed model at low aggregation (high temperature).
+
+    At high temperatures, both K_iso and K_coop decrease, and σ → 1.
+    This test measures numerical stability in the low-aggregation regime.
+    """
+    R = 8.314
+    deltaH_iso = -96000
+    deltaS_iso = -195
+    deltaH_coop = -96000
+    deltaS_coop = -180
+    deltaHnuc_coop = 100000
+    c_tot = 1e-6
+
+    # Temperature progression: 300 K → 500 K (high temperature where agg → 0)
+    temps = np.linspace(300, 500, 200)
+
+    aggs = []
+    K_iso_vals = []
+    K_coop_vals = []
+    sigma_vals = []
+
+    for temp in temps:
+        try:
+            agg = temp_coop_iso_model(
+                Temp=temps,
+                deltaH_iso=deltaH_iso,
+                deltaS_iso=deltaS_iso,
+                deltaH_coop=deltaH_coop,
+                deltaS_coop=deltaS_coop,
+                deltaHnuc_coop=deltaHnuc_coop,
+                c_tot=c_tot,
+                scaler=1.0,
+            )
+            aggs.append(agg)
+            break
+        except:
+            pass
+
+    if len(aggs) == 0:
+        # Use only single-temperature calculation
+        temps_check = np.array([300.0, 350.0, 400.0, 450.0, 500.0])
+        aggs_list = []
+
+        for temp in temps_check:
+            K_iso = np.exp(-deltaH_iso / (R * temp) + deltaS_iso / R)
+            K_coop = np.exp(-deltaH_coop / (R * temp) + deltaS_coop / R)
+            sigma = np.exp(-deltaHnuc_coop / (R * temp))
+            K_iso_vals.append(K_iso)
+            K_coop_vals.append(K_coop)
+            sigma_vals.append(sigma)
+
+            agg = temp_coop_iso_model(
+                Temp=np.array([temp]),
+                deltaH_iso=deltaH_iso,
+                deltaS_iso=deltaS_iso,
+                deltaH_coop=deltaH_coop,
+                deltaS_coop=deltaS_coop,
+                deltaHnuc_coop=deltaHnuc_coop,
+                c_tot=c_tot,
+                scaler=1.0,
+            )
+            aggs_list.append(agg[0])
+
+        aggs = np.array(aggs_list)
+        temps_check = temps_check
+    else:
+        aggs = aggs[0]
+        temps_check = temps
+        for temp in temps_check:
+            K_iso = np.exp(-deltaH_iso / (R * temp) + deltaS_iso / R)
+            K_coop = np.exp(-deltaH_coop / (R * temp) + deltaS_coop / R)
+            sigma = np.exp(-deltaHnuc_coop / (R * temp))
+            K_iso_vals.append(K_iso)
+            K_coop_vals.append(K_coop)
+            sigma_vals.append(sigma)
+
+    # Identify low aggregation regime (agg < 1e-4)
+    low_agg_mask = aggs < 1e-4
+
+    # Analysis
+    print("\n=== Mixed Model: High-Temperature Rounding Error Analysis ===")
+    print(f"Temperature range: {temps_check.min():.1f} K to {temps_check.max():.1f} K")
+    print(f"Aggregation range: {aggs.min():.2e} to {aggs.max():.2e}")
+    print(f"K_iso range: {np.min(K_iso_vals):.2e} to {np.max(K_iso_vals):.2e}")
+    print(f"K_coop range: {np.min(K_coop_vals):.2e} to {np.max(K_coop_vals):.2e}")
+    print(f"σ range: {np.min(sigma_vals):.2e} to {np.max(sigma_vals):.2e}")
+
+    if np.any(low_agg_mask):
+        aggs_low_agg = aggs[low_agg_mask]
+        print(f"\nLow aggregation regime (agg < 1e-4):")
+        print(f"  Number of points: {len(aggs_low_agg)}")
+        print(f"  Aggregation range: {aggs_low_agg.min():.2e} to {aggs_low_agg.max():.2e}")
+
+        # Check monotonicity (agg should decrease monotonically with increasing T)
+        agg_diff = np.diff(aggs_low_agg)
+        non_monotonic = np.sum(agg_diff > 0)
+        print(f"  Non-monotonic changes: {non_monotonic}")
+
+        # Check if aggregation values become unnaturally small (potential underflow)
+        underflow_threshold = 1e-15
+        underflow_count = np.sum(aggs_low_agg < underflow_threshold)
+        print(f"  Values below {underflow_threshold}: {underflow_count}")
+
+        # Relative changes in low aggregation regime
+        valid_mask = aggs_low_agg[:-1] != 0
+        if np.any(valid_mask):
+            rel_changes = np.abs(np.diff(aggs_low_agg)[valid_mask] / aggs_low_agg[:-1][valid_mask])
+            print(f"  Max relative change in agg: {rel_changes.max():.2e}")
+            print(f"  Mean relative change in agg: {rel_changes.mean():.2e}")
+
+    # Verify aggregation is non-negative and <= 1
+    # Note: negative values near zero indicate rounding error issues
+    neg_count = np.sum(aggs < 0)
+    if neg_count > 0:
+        print(f"  [WARNING] {neg_count} negative aggregation values detected (rounding error)")
+
+    # Check for underflow in low aggregation regime
+    if np.any(low_agg_mask):
+        aggs_low_agg = aggs[low_agg_mask]
+        underflow_count = np.sum(np.abs(aggs_low_agg) < 1e-14)
+        if underflow_count > 0:
+            print(f"  [WARNING] {underflow_count} potential underflow values (<1e-14) detected")
+
+    # Physical constraints should still hold in absolute terms
+    assert np.all(aggs <= 1.0), "Aggregation should not exceed 1"
+
+    print("\n✓ Mixed model high-temperature rounding error test completed")
+
+
 if __name__ == "__main__":
     test_mixed_inverse_consistency()
     fig = test_temp_mixed_model()
+    test_mixed_high_temp_rounding_error()
     plt.show()

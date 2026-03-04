@@ -20,7 +20,7 @@ from sp_fitting_models.models import (
 defaults = {
     "co_deltaH": -96000,
     "co_deltaS": -180,
-    "co_deltaHnuc": 100000,
+    "co_deltaHnuc": 10000,
     "co_scaler": 1.0,
     "iso_deltaH": -96000,
     "iso_deltaS": -195,
@@ -56,6 +56,16 @@ def plot_curve(params):
         c_tot=params["concentration"],
     )
 
+    # Cooperative only (for comparison)
+    agg_coop = temp_cooperative_model(
+        Temp=temps,
+        deltaH=params["co_deltaH"],
+        deltaS=params["co_deltaS"],
+        deltaHnuc=params["co_deltaHnuc"],
+        c_tot=params["concentration"],
+        scaler=params["co_scaler"],
+    )
+
     ax.clear()
     ax.plot(temps - 273.15, agg, label="Mixed Model", linewidth=2, color="blue")
     ax.plot(
@@ -67,12 +77,21 @@ def plot_curve(params):
         color="orange",
     )
 
+    ax.plot(
+        temps - 273.15,
+        agg_coop,
+        label="Cooperative Only",
+        linestyle=":",
+        linewidth=2,
+        color="green",
+    )
+
     ax.set_xlabel("Temperature (°C)", fontsize=12)
     ax.set_ylabel("Aggregation", fontsize=12)
     ax.set_title(f"Mixed Model (Conc={params['concentration']:.2e} M)", fontsize=14)
     ax.legend(fontsize=10)
     ax.grid(True, alpha=0.3)
-    ax.set_ylim([0, 1])
+    ax.set_ylim((0, 1))
     fig.canvas.draw_idle()
 
 
@@ -90,7 +109,7 @@ ax_concentration = plt.axes([0.25, 0.11, 0.65, 0.03], facecolor=axcolor)
 
 s_co_deltaH = Slider(ax_co_deltaH, "Coop ΔH", -120000, 120000, valinit=defaults["co_deltaH"])
 s_co_deltaS = Slider(ax_co_deltaS, "Coop ΔS", -300, 300, valinit=defaults["co_deltaS"])
-s_co_deltaHnuc = Slider(ax_co_deltaHnuc, "Coop ΔHnuc", 0, 150000, valinit=defaults["co_deltaHnuc"])
+s_co_deltaHnuc = Slider(ax_co_deltaHnuc, "Coop ΔHnuc", 0, 50000, valinit=defaults["co_deltaHnuc"])
 s_iso_deltaH = Slider(ax_iso_deltaH, "Iso ΔH", -120000, 120000, valinit=defaults["iso_deltaH"])
 s_iso_deltaS = Slider(ax_iso_deltaS, "Iso ΔS", -300, 300, valinit=defaults["iso_deltaS"])
 s_concentration = Slider(

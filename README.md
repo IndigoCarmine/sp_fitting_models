@@ -23,23 +23,13 @@ This library provides mathematical models for analyzing supramolecular polymeriz
 
 - **フィッティング機能**
   - lmfitライブラリを使用した実験データへのフィッティング
-  - 複数濃度データの同時フィッティングに対応
+  - 複数濃度データの同時フィッティング(グローバルフィット)に対応
 
-- **高速計算**
-  - Numbaによる最適化で高速な数値計算を実現
 
 ## インストール / Installation
 
 ```bash
-# Clone the repository
-git clone <repository-url>
-cd sp_fitting_models
-
-# Install with uv (recommended)
-uv pip install -e .
-
-# Or install with pip
-pip install -e .
+uv add https://github.com/IndigoCarmine/sp_fitting_models.git
 ```
 
 ## 使用方法 / Usage
@@ -146,20 +136,43 @@ sp_fitting_models/
 
 ### Isodesmicモデル
 
-すべての会合ステップが同じ平衡定数Kを持つモデルです。単調な会合曲線を示します。
+すべての会合ステップが同じ平衡定数Kを持つモデルです。シグモイド型の会合曲線を示します。
 
 $$K = \exp\left(-\frac{\Delta H}{RT} + \frac{\Delta S}{R}\right)$$
 
+次のような平衡状態です。
+供給されるモノマーは省略してあります。：
+$$M \stackrel{K}{\rightleftarrows}
+ M_2\stackrel{K}{\rightleftarrows}
+ M_3 \stackrel{K}{\rightleftarrows} ...$$
+
 ### Cooperativeモデル
 
-核形成と伸長で異なる平衡定数を持つモデルです。シグモイド型の会合曲線を示します。核形成ペナルティσにより協同性が表現されます。
+核形成と伸長で異なる平衡定数を持つモデルです。非シグモイド型の会合曲線を示します。核形成ペナルティσにより協同性が表現されます。
 
 $$\sigma = \exp\left(-\frac{\Delta H_{nuc}}{RT}\right)$$
+
+$$ K = \exp\left(-\frac{\Delta H}{RT} + \frac{\Delta S}{R}\right)$$
+
+$$ K_{nuc} = \sigma K $$
+次のような平衡状態です。
+$$M \stackrel{K_{nuc}}{\rightleftarrows}
+ M_2\stackrel{K}{\rightleftarrows}
+ M_3 \stackrel{K}{\rightleftarrows} ...$$
+
 
 ### Mixedモデル
 
 IsodesmicとCooperativeの2つの経路が同じモノマープールを共有して競合するモデルです。実験系で複数の会合機構が同時に起こる場合に適用できます。
 
+次のような平衡状態を考えています。
+$$M \stackrel{K_{nuc}}{\rightleftarrows}
+ M_2\stackrel{K}{\rightleftarrows}
+ M_3 \stackrel{K}{\rightleftarrows} ...$$
+$$ \searrow \nwarrow^{K_{iso}}
+ M_2\stackrel{K_{iso}}{\rightleftarrows}
+  M_3 \stackrel{K_{iso}}{\rightleftarrows} ...$$
+（MDではこれ以上きれいに書けませんでした...）
 ## テスト / Testing
 
 ```bash
