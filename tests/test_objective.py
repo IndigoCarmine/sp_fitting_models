@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import lmfit as lm
-from sp_fitting_models.objective import temp_cooperative_model
+from sp_fitting_models.fitting.objective import temp_cooperative_model
 import sp_fitting_models.models as models
 from sp_fitting_models.data import TempVsAggData
 
