@@ -42,7 +42,7 @@ def inv_cooperative_model(c_monomer: np.ndarray, K: float, sigma: float) -> np.n
     cK = K * c_monomer
     if np.any(cK >= 1):
         raise ValueError("K * c_monomer must be less than 1 for the cooperative model.")
-    return c_monomer + sigma / K * (cK * (2 - cK)) / (1 - cK) ** 2
+    return c_monomer + sigma / K * (cK**2 * (2 - cK)) / (1 - cK) ** 2
 
 
 # @nb.jit(nopython=True)

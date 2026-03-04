@@ -99,10 +99,10 @@ def test_mixed_high_temp_should_approach_zero_for_low_deltaHnuc():
 
     params = dict(
         deltaH_iso=-96000,
-        deltaS_iso=-195,
+        deltaS_iso=-180,
         deltaH_coop=-96000,
-        deltaS_coop=-180,
-        c_tot=1e-6,
+        deltaS_coop=-195,
+        c_tot=10e-6,
         scaler=1.0,
     )
 
