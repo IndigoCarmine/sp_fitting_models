@@ -25,7 +25,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels
+          name: wheels-${{ matrix.os }}
           path: dist
 
   publish:
@@ -40,7 +40,6 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: wheels
           path: dist
 
       - uses: pypa/gh-action-pypi-publish@release/v1
