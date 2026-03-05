@@ -1,6 +1,6 @@
 [project]
 name = "sp-fitting-models"
-version = "1.0.0"
+version = "1.1.0"
 description = "For fitting spectroscopic data to cooperative and isodesmic models of supramolecular polymerization."
 readme = "README.md"
 authors = [
