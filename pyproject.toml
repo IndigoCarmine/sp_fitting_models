@@ -1,10 +1,10 @@
 [project]
 name = "sp-fitting-models"
-version = "1.3.0"
+version = "1.3.1"
 description = "For fitting spectroscopic data to cooperative and isodesmic models of supramolecular polymerization."
 readme = "README.md"
 authors = [
-    { name = "IndigoCarmine", email = "tamanisikaminai@gmail.com" }
+    { name = "Yuhei Yamada", email = "tamanisikaminai@gmail.com" }
 ]
 requires-python = ">=3.13"
 dependencies = [

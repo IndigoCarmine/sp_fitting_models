@@ -1,5 +1,7 @@
 # sp-fitting-models
 
+[English README](README.en.md)
+
 超分子ポリマーのフィッティングモデルライブラリ
 
 A Python library for fitting supramolecular polymerization data with various thermodynamic models.
@@ -102,6 +104,29 @@ python examples/interactive_mixed.py
 ```
 
 スライダーを使用してパラメータを変更し、リアルタイムで会合曲線の変化を観察できます。
+
+### Windowsアプリとしてビルド (uv + PyInstaller)
+
+`examples/interactive_mixed.py` をコンソールなしの Windows GUI アプリとしてビルドできます。
+
+```powershell
+./scripts/build_interactive_mixed.ps1
+```
+
+または `cmd.exe` から:
+
+```bat
+build_interactive_mixed.bat
+```
+
+生成物:
+
+- `dist/interactive_mixed/interactive_mixed.exe`
+
+このスクリプトは次を自動で行います。
+
+1. `uv sync` で依存関係とローカルパッケージを同期
+2. `uv run --with pyinstaller ...` で GUI アプリをビルド
 
 ## プロジェクト構造 / Project Structure
 
@@ -207,3 +232,7 @@ python examples/interactive_mixed.py
 ご自由にお使いください。
 
 I would be grateful if you could cite this library in your publications, but it is not mandatory. Please feel free to use it as you see fit.
+
+
+## 作成者 / Author
+山田悠平　(Yuhei Yamada, Orcid: [0009-0003-9780-4135](https://orcid.org/0009-0003-9780-4135), google scholar: [Yuhei Yamada](https://scholar.google.co.jp/citations?user=mRKL6CYAAAAJ))
