@@ -6,7 +6,7 @@ import lmfit as lm
 import numpy as np
 
 from ..data import TempVsAggData
-from ..models import temp_cooperative_model, temp_coop_iso_model
+from ..models import temp_cooperative_model as model_temp_cooperative, temp_coop_iso_model
 
 
 def objective_temp_cooperative(params: lm.Parameters, data: list[TempVsAggData]) -> np.ndarray:
@@ -31,7 +31,7 @@ def objective_temp_cooperative(params: lm.Parameters, data: list[TempVsAggData])
     index = 0
 
     for d in data:
-        model_pred = temp_cooperative_model(
+        model_pred = model_temp_cooperative(
             Temp=d.temp,
             deltaH=params["deltaH"].value,
             deltaS=params["deltaS"].value,
@@ -44,6 +44,13 @@ def objective_temp_cooperative(params: lm.Parameters, data: list[TempVsAggData])
         index += len(res)
 
     return residual
+
+
+def temp_cooperative_model(params: lm.Parameters, data: list[TempVsAggData]) -> np.ndarray:
+    """
+    Backward-compatible alias for cooperative objective used in tests/examples.
+    """
+    return objective_temp_cooperative(params, data)
 
 
 def objective_temp_coop_iso(params: lm.Parameters, data: list[TempVsAggData]) -> np.ndarray:

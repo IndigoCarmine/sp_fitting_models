@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import lmfit as lm
+from typing import Any, cast
 from sp_fitting_models.fitting.objective import temp_cooperative_model
 import sp_fitting_models.models as models
 from sp_fitting_models.data import TempVsAggData
@@ -44,7 +45,7 @@ def test_temp_cooperative_model_fit():
 
     # Fit
     minner = lm.Minimizer(temp_cooperative_model, params, fcn_args=(data_list,))
-    result = minner.minimize()
+    result = cast(Any, minner.minimize())
 
     print(lm.fit_report(result))
 

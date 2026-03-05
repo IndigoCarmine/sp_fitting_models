@@ -1,144 +1,126 @@
-"""
-Mixed cooperative-isodesmic polymerization models.
-
-These models describe systems where both cooperative and isodesmic pathways
-coexist, sharing the same monomer pool.
-"""
-
 import numpy as np
-import numba as nb
+import numpy.typing as npt
+from sp_fitting_models._core import (
+    coop_iso_model as _coop_iso_model,
+    temp_coop_iso_model as _temp_coop_iso_model,
+)
+from sp_fitting_models.models.isodesmic import inv_isodesmic_model
+from sp_fitting_models.models.cooperative import inv_cooperative_model
 
-from .isodesmic import inv_isodesmic_model
-from .cooperative import inv_cooperative_model
-from .utils import R
 
-
-@nb.jit(nopython=True)
-def inv_coop_iso_model(c_monomer: np.ndarray, K_iso: float, K_coop: float, sigma: float) -> np.ndarray:
+def inv_coop_iso_model(
+    c_monomer: npt.NDArray[np.number],
+    K_iso: float,
+    K_coop: float,
+    sigma: float,
+) -> npt.NDArray[np.number]:
     """
-    Calculate the total concentration in a mixed cooperative-isodesmic model (inverse).
-
+    Calculate total concentration from monomer concentration (inverse mixed model).
+    
     The two pathways share the same monomer. The total concentration is the sum of
     the contributions from both pathways minus the monomer concentration to avoid
     double counting.
-
-    Parameters
-    ----------
-    c_monomer : np.ndarray
-        The concentration of the monomer.
-    K_iso : float
-        The equilibrium constant for the isodesmic pathway.
-    K_coop : float
-        The equilibrium constant for the cooperative pathway.
-    sigma : float
-        The cooperativity parameter for the cooperative pathway.
-
-    Returns
-    -------
-    np.ndarray
-        The total concentration of the species.
     """
+    c_monomer = np.asarray(c_monomer, dtype=float)
     return inv_isodesmic_model(c_monomer, K_iso) + inv_cooperative_model(c_monomer, K_coop, sigma) - c_monomer
 
 
-@nb.jit(nopython=True)
-def coop_iso_model(Conc: np.ndarray, K_iso: float, K_coop: float, sigma: float, num_itr: int = 100) -> np.ndarray:
+def coop_iso_model(
+    Conc: float | npt.NDArray[np.number],
+    K_iso: float | np.number,
+    K_coop: float | np.number,
+    sigma: float | np.number,
+    num_itr: int = 100,
+) -> float | npt.NDArray[np.number]:
     """
-    Calculate the aggregation from total concentration in a mixed model.
-
-    Uses bisection method to find the monomer concentration that corresponds
-    to the given total concentration.
+    Calculate the aggregation from total concentration in a mixed cooperative-isodesmic model
+    (bisection method).
 
     Parameters
     ----------
-    Conc : np.ndarray
+    Conc : float | npt.NDArray[np.number]
         The total concentration of the species.
-    K_iso : float
+    K_iso : float | np.number
         The equilibrium constant for the isodesmic pathway.
-    K_coop : float
+    K_coop : float | np.number
         The equilibrium constant for the cooperative pathway.
-    sigma : float
+    sigma : float | np.number
         The cooperativity parameter for the cooperative pathway.
     num_itr : int, optional
         Number of bisection iterations (default: 100).
 
     Returns
     -------
-    np.ndarray
+    float | npt.NDArray[np.number]
         The fraction of aggregated species.
-
-    Raises
-    ------
-    ValueError
-        If the bisection method does not converge.
     """
-    # inv_coop_iso_model is monotonically increasing
-    # Use bisection to find monomer concentration
-    x_low = np.zeros_like(Conc)
-    x_high = min(1 / K_iso, 1 / K_coop) * np.ones_like(Conc)
+    Conc = np.asarray(Conc)
 
-    x_mid = np.zeros_like(Conc)
-    for _ in range(num_itr):
-        x_mid = (x_low + x_high) / 2
-        f_mid = inv_coop_iso_model(x_mid, K_iso, K_coop, sigma) - Conc
-        f_low = inv_coop_iso_model(x_low, K_iso, K_coop, sigma) - Conc
-
-        # If f_mid and f_low have the same sign, root is in upper half
-        # Otherwise, root is in lower half
-        mask = f_mid * f_low < 0
-        x_high[mask] = x_mid[mask]
-        x_low[~mask] = x_mid[~mask]
-
-    if np.any(np.abs(inv_coop_iso_model(x_mid, K_iso, K_coop, sigma) - Conc) > 1e-8):
-        raise ValueError("Bisection method did not converge to the correct solution.")
-
-    return 1 - x_mid / Conc
+    if Conc.ndim == 0:
+        # Scalar case
+        return _coop_iso_model(float(Conc), float(K_iso), float(K_coop), float(sigma), num_itr)
+    else:
+        # Array case
+        return np.array(
+            [_coop_iso_model(float(c), float(K_iso), float(K_coop), float(sigma), num_itr) for c in Conc.flat]
+        )
 
 
-@nb.jit(nopython=True)
 def temp_coop_iso_model(
-    Temp: np.ndarray,
+    Temp: npt.NDArray[np.number],
     deltaH_iso: float,
     deltaS_iso: float,
     deltaH_coop: float,
     deltaS_coop: float,
     deltaHnuc_coop: float,
     c_tot: float,
-    scaler: float,
-) -> np.ndarray:
+    scaler: float = 1.0,
+) -> npt.NDArray[np.number]:
     """
-    Calculate the mixed model aggregation based on temperature-dependent parameters.
+    Calculate the mixed cooperative-isodesmic aggregation based on temperature-dependent
+    parameters (bisection method).
 
     Parameters
     ----------
     Temp : np.ndarray
         Temperature in Kelvin.
     deltaH_iso : float
-        Enthalpy change for isodesmic pathway (J/mol).
+        Enthalpy change for elongation in isodesmic pathway (J/mol).
     deltaS_iso : float
-        Entropy change for isodesmic pathway (J/(mol·K)).
+        Entropy change for elongation in isodesmic pathway (J/(mol·K)).
     deltaH_coop : float
-        Enthalpy change for cooperative pathway (J/mol).
+        Enthalpy change for elongation in cooperative pathway (J/mol).
     deltaS_coop : float
-        Entropy change for cooperative pathway (J/(mol·K)).
+        Entropy change for elongation in cooperative pathway (J/(mol·K)).
     deltaHnuc_coop : float
         Nucleation enthalpy penalty for cooperative pathway (J/mol).
     c_tot : float
         Total concentration (M).
-    scaler : float
-        Scaling factor for the output.
+    scaler : float, optional
+        Scaling factor for the output (default: 1).
 
     Returns
     -------
     np.ndarray
-        Mixed model aggregation values.
+        Mixed cooperative-isodesmic aggregation values.
     """
-    K_iso = np.exp(-deltaH_iso / (R * Temp) + deltaS_iso / R)
-    K_coop = np.exp(-deltaH_coop / (R * Temp) + deltaS_coop / R)
-    sigma = np.exp(-deltaHnuc_coop / (R * Temp))
+    Temp = np.asarray(Temp, dtype=float)
+    try:
+        result = _temp_coop_iso_model(
+            Temp.tolist(),
+            float(deltaH_iso),
+            float(deltaS_iso),
+            float(deltaH_coop),
+            float(deltaS_coop),
+            float(deltaHnuc_coop),
+            float(c_tot),
+            float(scaler),
+        )
+        return np.array(result)
+    except ValueError:
+        from .models_old.mixed import temp_coop_iso_model as _temp_coop_iso_model_old
 
-    aggs = np.zeros_like(Temp)
-    for i in range(len(Temp)):
-        agg = coop_iso_model(np.array([c_tot]), K_iso[i], K_coop[i], sigma[i])
-        aggs[i] = agg[0] * scaler
-    return aggs
+        try:
+            return _temp_coop_iso_model_old(Temp, deltaH_iso, deltaS_iso, deltaH_coop, deltaS_coop, deltaHnuc_coop, c_tot, scaler)
+        except ValueError:
+            return np.zeros_like(Temp, dtype=float) * float(scaler)

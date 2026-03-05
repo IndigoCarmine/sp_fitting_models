@@ -122,6 +122,7 @@ def test_cooperative_high_temp_rounding_error():
     print(f"Aggregation range: {aggs.min():.2e} to {aggs.max():.2e}")
     print(f"σ range: {sigma_vals.min():.2e} to {sigma_vals.max():.2e}")
 
+    non_monotonic = 0
     if len(aggs_low_agg) > 0:
         print(f"\nLow aggregation regime (agg < 1e-4):")
         print(f"  Temperature range: {temps_low_agg.min():.1f} K to {temps_low_agg.max():.1f} K")
