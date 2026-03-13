@@ -27,7 +27,7 @@ defaults = {
     "concentration": 1e-6,
 }
 
-temps = np.linspace(280, 500, 200)
+temps = np.linspace(280, 400, 200)
 
 fig, ax = plt.subplots(figsize=(10, 7))
 plt.subplots_adjust(left=0.25, bottom=0.45)
@@ -116,7 +116,7 @@ s_concentration = Slider(
     ax_concentration,
     "Concentration",
     1e-7,
-    1e-5,
+    1e-2,
     valinit=defaults["concentration"],
     valfmt="%1.2e",
 )

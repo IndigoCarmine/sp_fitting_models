@@ -156,7 +156,7 @@ if __name__ == "__main__":
     # Run all examples
     fig1 = example_isodesmic()
     fig2 = example_cooperative()
-    # fig3 = example_mixed()
-    # fig4 = compare_models()
+    fig3 = example_mixed()
+    fig4 = compare_models()
 
     plt.show()

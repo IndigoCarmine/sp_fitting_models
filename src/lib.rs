@@ -6,16 +6,12 @@ const R: f64 = 8.314;
 // ==================== Isodesmic Model ====================
 
 /// Calculate the total concentration from monomer concentration (inverse model).
-fn inv_isodesmic_model(c_monomer: &[f64], k: f64) -> Result<Vec<f64>, String> {
-    let mut result = Vec::with_capacity(c_monomer.len());
-    for &c in c_monomer {
-        if k * c > 1.0 {
-            return Err("K * c_monomer must be less than 1 for the isodesmic model.".to_string());
-        }
-        let denominator = 1.0 - k * c;
-        result.push(c / (denominator * denominator));
+fn inv_isodesmic_model(c_monomer: f64, k: f64) -> Result<f64, String> {
+    if k * c_monomer > 1.0 {
+        return Err("K * c_monomer must be less than 1 for the isodesmic model.".to_string());
     }
-    Ok(result)
+    let denominator = 1.0 - k * c_monomer;
+    return Ok(c_monomer / (denominator * denominator));
 }
 
 /// Calculate the fraction of aggregated species (direct formula).
@@ -34,24 +30,19 @@ fn isodesmic_model(conc: f64, k: f64, num_itr: usize) -> PyResult<f64> {
 
     for _ in 0..num_itr {
         let x_mid = (x_low + x_high) / 2.0;
-        let f_mid = match inv_isodesmic_model(&[x_mid], k) {
-            Ok(result) => result[0] - conc,
+        let f_mid = match inv_isodesmic_model(x_mid, k) {
+            Ok(result) => result - conc,
             Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(e)),
         };
-        let f_low = match inv_isodesmic_model(&[x_low], k) {
-            Ok(result) => result[0] - conc,
-            Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(e)),
-        };
-
-        if f_mid * f_low <= 0.0 {
-            x_high = x_mid;
-        } else {
+        if f_mid <= 0.0 {
             x_low = x_mid;
+        } else {
+            x_high = x_mid;
         }
     }
 
     let x_mid = (x_low + x_high) / 2.0;
-    match inv_isodesmic_model(&[x_mid], k) {
+    match inv_isodesmic_model(x_mid, k) {
         Ok(_) => Ok(1.0 - x_mid / conc),
         Err(e) => Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(e)),
     }
@@ -95,21 +86,17 @@ fn temp_isodesmic_model(
 // ==================== Cooperative Model ====================
 
 /// Calculate the total concentration from monomer concentration (inverse model).
-fn inv_cooperative_model(c_monomer: &[f64], k: f64, sigma: f64) -> Result<Vec<f64>, String> {
-    let mut result = Vec::with_capacity(c_monomer.len());
-    for &c in c_monomer {
-        if k == 0.0 {
-            result.push(c);
-            continue;
-        }
-        let ck = k * c;
-        if ck >= 1.0 {
-            return Err("K * c_monomer must be less than 1 for the cooperative model.".to_string());
-        }
-        let denominator = 1.0 - ck;
-        result.push(c + sigma / k * (ck * ck * (2.0 - ck)) / (denominator * denominator));
+fn inv_cooperative_model(c_monomer: f64, k: f64, sigma: f64) -> Result<f64, String> {
+
+    if k == 0.0 {
+        return Ok(c_monomer);
     }
-    Ok(result)
+    let ck = k * c_monomer;
+    if ck >= 1.0 {
+        return Err("K * c_monomer must be less than 1 for the cooperative model.".to_string());
+    }
+    let denominator = 1.0 - ck;
+    Ok(c_monomer + sigma / k * (ck * ck * (2.0 - ck)) / (denominator * denominator))
 }
 
 /// Calculate the aggregation from total concentration (bisection method).
@@ -120,21 +107,16 @@ fn cooperative_model(conc: f64, k: f64, sigma: f64, num_itr: usize) -> PyResult<
 
     for _ in 0..num_itr {
         let x_mid = (x_low + x_high) / 2.0;
-        let f_mid = match inv_cooperative_model(&[x_mid], k, sigma) {
-            Ok(result) => result[0] - conc,
-            Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(e)),
-        };
-        let f_low = match inv_cooperative_model(&[x_low], k, sigma) {
-            Ok(result) => result[0] - conc,
+        let f_mid = match inv_cooperative_model(x_mid, k, sigma) {
+            Ok(result) => result - conc,
             Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(e)),
         };
 
-        if f_mid * f_low <= 0.0 {
-            x_high = x_mid;
-        } else {
+        if f_mid <= 0.0 {
             x_low = x_mid;
-        }
-    }
+        } else {
+            x_high = x_mid;
+    }}
 
     let x_mid = (x_low + x_high) / 2.0;
     Ok(1.0 - x_mid / conc)
@@ -164,17 +146,14 @@ fn temp_cooperative_model(
 
 /// Calculate the total concentration in mixed model (inverse).
 fn inv_coop_iso_model(
-    c_monomer: &[f64],
+    c_monomer: f64,
     k_iso: f64,
     k_coop: f64,
     sigma: f64,
-) -> Result<Vec<f64>, String> {
+) -> Result<f64, String> {
     let iso = inv_isodesmic_model(c_monomer, k_iso)?;
     let coop = inv_cooperative_model(c_monomer, k_coop, sigma)?;
-    
-    Ok(iso.iter().zip(coop.iter()).zip(c_monomer.iter())
-        .map(|((&i, &c), &m)| i + c - m)
-        .collect())
+    Ok(iso + coop - c_monomer)
 }
 
 /// Calculate the aggregation from total concentration (bisection method, mixed model).
@@ -191,19 +170,15 @@ fn coop_iso_model(
 
     for _ in 0..num_itr {
         let x_mid = (x_low + x_high) / 2.0;
-        let f_mid = match inv_coop_iso_model(&[x_mid], k_iso, k_coop, sigma) {
-            Ok(result) => result[0] - conc,
-            Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(e)),
-        };
-        let f_low = match inv_coop_iso_model(&[x_low], k_iso, k_coop, sigma) {
-            Ok(result) => result[0] - conc,
+        let f_mid = match inv_coop_iso_model(x_mid, k_iso, k_coop, sigma) {
+            Ok(result) => result - conc,
             Err(e) => return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>(e)),
         };
 
-        if f_mid * f_low <= 0.0 {
-            x_high = x_mid;
-        } else {
+        if f_mid <= 0.0 {
             x_low = x_mid;
+        } else {
+            x_high = x_mid;
         }
     }
 
