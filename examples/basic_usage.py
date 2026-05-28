@@ -12,6 +12,7 @@ from sp_fitting_models.models import (
     temp_isodesmic_model,
     temp_cooperative_model,
     temp_coop_iso_model,
+    temp_cooperative_model_n,
 )
 
 
@@ -72,7 +73,7 @@ def example_cooperative():
 
     ax.set_xlabel("Temperature (°C)", fontsize=12)
     ax.set_ylabel("Aggregation", fontsize=12)
-    ax.set_title("Cooperative Model (Sigmoidal)", fontsize=14)
+    ax.set_title("Cooperative Model (Non-Sigmoidal)", fontsize=14)
     ax.legend(title="Concentration", fontsize=10)
     ax.grid(True, alpha=0.3)
 
@@ -119,6 +120,33 @@ def example_mixed():
     return fig
 
 
+def example_cooperative_n():
+    """Example: Temperature-dependent cooperative model. with different nucleation sizes."""
+    print("Example 3: Cooperative Model")
+
+    temps = np.linspace(280, 400, 200)
+
+    deltaH = -96000  # J/mol
+    deltaS = -180  # J/(mol·K)
+    deltaHnuc = 10000  # J/mol (nucleation penalty)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    for n in [2, 3, 4, 5, 6]:
+        agg = temp_cooperative_model_n(
+            Temp=temps, deltaH=deltaH, deltaS=deltaS, deltaHnuc=deltaHnuc, c_tot=5e-6, scaler=1.0, nuc_size=n
+        )
+        ax.plot(temps - 273.15, agg, label=f"Nucleation Size: {n}", linewidth=2)
+
+    ax.set_xlabel("Temperature (°C)", fontsize=12)
+    ax.set_ylabel("Aggregation", fontsize=12)
+    ax.set_title("Cooperative Model (Non-Sigmoidal)", fontsize=14)
+    ax.legend(title="Concentration", fontsize=10)
+    ax.grid(True, alpha=0.3)
+
+    return fig
+
+
 def compare_models():
     """Compare all three models side by side."""
     print("Example 4: Comparing All Models")
@@ -157,6 +185,7 @@ if __name__ == "__main__":
     fig1 = example_isodesmic()
     fig2 = example_cooperative()
     fig3 = example_mixed()
-    fig4 = compare_models()
+    fig4 = example_cooperative_n()
+    fig5 = compare_models()
 
     plt.show()

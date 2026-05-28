@@ -23,6 +23,12 @@ from .mixed import (
     temp_coop_iso_model,
 )
 
+from .n_cooperative import (
+    inv_cooperative_model_n,
+    cooperative_model_n,
+    temp_cooperative_model_n,
+)
+
 __all__ = [
     "inv_isodesmic_model",
     "isodesmic_model_direct",
@@ -35,4 +41,7 @@ __all__ = [
     "inv_coop_iso_model",
     "coop_iso_model",
     "temp_coop_iso_model",
+    "inv_cooperative_model_n",
+    "cooperative_model_n",
+    "temp_cooperative_model_n",
 ]

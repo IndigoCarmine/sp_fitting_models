@@ -218,6 +218,15 @@ python examples/basic_usage.py
 python examples/interactive_mixed.py
 ```
 
+
+## uvでの実行
+
+```bash
+uv run --with maturin maturin develop --release
+uv run pytest
+```
+
+
 ## 依存関係 / Dependencies
 
 - Python >= 3.13
