@@ -12,6 +12,7 @@ from matplotlib.widgets import Slider
 from sp_fitting_models.models import (
     temp_coop_iso_model,
     temp_cooperative_model,
+    temp_cooperative_model_n,
     temp_isodesmic_model,
 )
 
@@ -22,6 +23,7 @@ defaults = {
     "co_deltaS": -180,
     "co_deltaHnuc": 10000,
     "co_scaler": 1.0,
+    "co_nuc_size": 3,
     "iso_deltaH": -96000,
     "iso_deltaS": -195,
     "concentration": 1e-6,
@@ -66,6 +68,17 @@ def plot_curve(params):
         scaler=params["co_scaler"],
     )
 
+    # N-cooperative only (nucleation size N, for comparison)
+    agg_coop_n = temp_cooperative_model_n(
+        Temp=temps,
+        deltaH=params["co_deltaH"],
+        deltaS=params["co_deltaS"],
+        deltaHnuc=params["co_deltaHnuc"],
+        c_tot=params["concentration"],
+        scaler=params["co_scaler"],
+        nuc_size=int(round(params["co_nuc_size"])),
+    )
+
     ax.clear()
     ax.plot(temps - 273.15, agg, label="Mixed Model", linewidth=2, color="blue")
     ax.plot(
@@ -86,6 +99,15 @@ def plot_curve(params):
         color="green",
     )
 
+    ax.plot(
+        temps - 273.15,
+        agg_coop_n,
+        label=f"N-Cooperative (N={int(round(params['co_nuc_size']))})",
+        linestyle="-.",
+        linewidth=2,
+        color="red",
+    )
+
     ax.set_xlabel("Temperature (°C)", fontsize=12)
     ax.set_ylabel("Aggregation", fontsize=12)
     ax.set_title(f"Mixed Model (Conc={params['concentration']:.2e} M)", fontsize=14)
@@ -103,6 +125,7 @@ axcolor = "lightgoldenrodyellow"
 ax_co_deltaH = plt.axes((0.25, 0.35, 0.65, 0.03), facecolor=axcolor)
 ax_co_deltaS = plt.axes((0.25, 0.31, 0.65, 0.03), facecolor=axcolor)
 ax_co_deltaHnuc = plt.axes((0.25, 0.27, 0.65, 0.03), facecolor=axcolor)
+ax_co_nuc_size = plt.axes((0.25, 0.23, 0.65, 0.03), facecolor=axcolor)
 ax_iso_deltaH = plt.axes((0.25, 0.19, 0.65, 0.03), facecolor=axcolor)
 ax_iso_deltaS = plt.axes((0.25, 0.15, 0.65, 0.03), facecolor=axcolor)
 ax_concentration = plt.axes((0.25, 0.11, 0.65, 0.03), facecolor=axcolor)
@@ -110,6 +133,9 @@ ax_concentration = plt.axes((0.25, 0.11, 0.65, 0.03), facecolor=axcolor)
 s_co_deltaH = Slider(ax_co_deltaH, "Coop ΔH", -1200000, 120000, valinit=defaults["co_deltaH"])
 s_co_deltaS = Slider(ax_co_deltaS, "Coop ΔS", -3000, 300, valinit=defaults["co_deltaS"])
 s_co_deltaHnuc = Slider(ax_co_deltaHnuc, "Coop ΔHnuc", 0, 50000, valinit=defaults["co_deltaHnuc"])
+s_co_nuc_size = Slider(
+    ax_co_nuc_size, "Coop N (nuc size)", 2, 12, valinit=defaults["co_nuc_size"], valstep=1
+)
 s_iso_deltaH = Slider(ax_iso_deltaH, "Iso ΔH", -120000, 120000, valinit=defaults["iso_deltaH"])
 s_iso_deltaS = Slider(ax_iso_deltaS, "Iso ΔS", -300, 300, valinit=defaults["iso_deltaS"])
 s_concentration = Slider(
@@ -130,6 +156,7 @@ def update(val):
         "co_deltaS": s_co_deltaS.val,
         "co_deltaHnuc": s_co_deltaHnuc.val,
         "co_scaler": 1.0,
+        "co_nuc_size": s_co_nuc_size.val,
         "iso_deltaH": s_iso_deltaH.val,
         "iso_deltaS": s_iso_deltaS.val,
         "concentration": s_concentration.val,
@@ -141,6 +168,7 @@ def update(val):
 s_co_deltaH.on_changed(update)
 s_co_deltaS.on_changed(update)
 s_co_deltaHnuc.on_changed(update)
+s_co_nuc_size.on_changed(update)
 s_iso_deltaH.on_changed(update)
 s_iso_deltaS.on_changed(update)
 s_concentration.on_changed(update)
