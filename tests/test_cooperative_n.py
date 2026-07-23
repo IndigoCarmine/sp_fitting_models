@@ -9,12 +9,30 @@ import pytest
 from sp_fitting_models.models import (
     temp_cooperative_model_n,
     inv_cooperative_model_n,
+    cooperative_model_n,
+    cooperative_model,
+    inv_cooperative_model,
 )
+
+
+def _species_sum_ctot(c_m, K, sigma, N, s_max=5000):
+    """Ground-truth total concentration by direct species summation.
+
+    c_tot = sum_s s * [M_s], with [M_s] = sigma**(min(s, N) - 1) * K**(s - 1) * c_m**s.
+    Valid while K * c_m < 1 (geometric tail converges); s_max=5000 is far beyond needed.
+    """
+    s = np.arange(1, s_max + 1, dtype=float)
+    penalty = np.minimum(s, N) - 1.0
+    Ms = sigma**penalty * K ** (s - 1) * c_m**s
+    return float(np.sum(s * Ms))
 
 
 def test_cooperative_inverse_consistency():
     """
-    Test that the cooperative model and its inverse are consistent.
+    Forward solver (Rust) and inverse model (Python) must be self-consistent for each
+    nucleus size. Both now implement the same corrected formula, so the round-trip should
+    hold to a tight tolerance (limited only by bisection precision and the (1 - agg)
+    cancellation near full aggregation), not the loose 5e-2 that previously masked a bug.
     """
     c_tot = np.linspace(1, 1000, 1000) * 1e-6  # Total concentrations from 1 uM to 1000 uM
     deltaH = -96000
@@ -27,25 +45,76 @@ def test_cooperative_inverse_consistency():
     K = np.exp(-deltaH / (R * Temp) + deltaS / R)
     sigma = np.exp(-deltaHnuc / (R * Temp))
 
-    for n in [3, 4, 5]:  # Test for different nucleation sizes
-        # Calculate aggregation
-        agg = [
-            temp_cooperative_model_n(np.array([Temp]), deltaH, deltaS, deltaHnuc, c, scaler=1.0, nuc_size=3)
-            for c in c_tot
-        ]
-        agg = np.array(agg).flatten()
+    for n in [2, 3, 4, 5]:  # actually vary the nucleus size (bug fix: was hardcoded to 3)
+        # Calculate aggregation with nucleus size n
+        agg = np.array(
+            [
+                temp_cooperative_model_n(np.array([Temp]), deltaH, deltaS, deltaHnuc, c, scaler=1.0, nuc_size=n)
+                for c in c_tot
+            ]
+        ).flatten()
         monomer_conc = (1 - agg) * c_tot
-        print(f"Aggregation range: {agg.min():.2e} to {agg.max():.2e}")
-        print(f"Monomer concentration range: {monomer_conc.min():.2e} M to {monomer_conc.max():.2e} M")
 
-        # Reverse calculation
-        c_tot_calculated = inv_cooperative_model_n(monomer_conc, K, sigma, nuc_size=3)
+        # Reverse calculation with the same nucleus size n
+        c_tot_calculated = inv_cooperative_model_n(monomer_conc, K, sigma, nuc_size=n)
 
         # Check consistency
         max_diff = np.max(np.abs(c_tot - c_tot_calculated) / c_tot)
-        print(f"Maximum relative difference: {max_diff:.2e}")
-        assert np.allclose(c_tot, c_tot_calculated, rtol=5e-2), "Cooperative model inverse is inconsistent"
-    print("✓ Cooperative inverse consistency test passed")
+        assert np.allclose(c_tot, c_tot_calculated, rtol=1e-3), (
+            f"Cooperative model inverse inconsistent for nuc_size={n} (max rel diff {max_diff:.2e})"
+        )
+
+
+def test_inv_cooperative_n_matches_species_sum():
+    """
+    The Python inverse model must reproduce the exact species-sum ground truth to near
+    machine precision, for several nucleus sizes and cK values. This pins the corrected
+    formula (multiplicity factor s and summation range s = 2..N-1).
+    """
+    K, sigma = 1.0, 0.1
+    for N in [2, 3, 4, 5, 6]:
+        for x in [0.05, 0.2, 0.4, 0.6, 0.8]:  # x = cK
+            c_m = x / K
+            expected = _species_sum_ctot(c_m, K, sigma, N)
+            got = float(inv_cooperative_model_n(np.asarray(c_m), K, sigma, N))
+            assert got == pytest.approx(expected, rel=1e-9), f"N={N}, cK={x}"
+
+
+def test_cooperative_n_forward_matches_species_sum():
+    """
+    The Rust forward solver must invert the exact species-sum: recovering the free-monomer
+    concentration from a known total should return the original value (round-trip on c_m),
+    including the high-aggregation regime (cK -> 1) where the boundary handling matters.
+    """
+    K, sigma = 1.0, 0.1
+    for N in [2, 3, 4, 5, 8]:
+        for x in [0.1, 0.3, 0.5, 0.7, 0.9]:  # x = cK, incl. near-singularity
+            c_m = x / K
+            c_tot = _species_sum_ctot(c_m, K, sigma, N)
+            agg = cooperative_model_n(c_tot, K, sigma, N)
+            c_m_recovered = (1.0 - agg) * c_tot
+            assert c_m_recovered == pytest.approx(c_m, rel=1e-6), f"N={N}, cK={x}"
+            assert 0.0 <= agg <= 1.0
+
+
+def test_cooperative_n_reduces_to_basic_at_n2():
+    """
+    nuc_size=2 must reproduce the basic cooperative model exactly, for both the forward
+    solver and the inverse model (invariant that was broken before the fix).
+    """
+    K, sigma = 2.056e7, 0.0181
+    for c in [1e-6, 5e-6, 1e-5, 5e-5, 1e-4]:
+        agg_n = cooperative_model_n(float(c), K, sigma, 2)
+        agg_basic = cooperative_model(float(c), K, sigma)
+        assert agg_n == pytest.approx(agg_basic, abs=1e-12, rel=0), f"forward mismatch at c={c}"
+
+    c_monomer = np.linspace(1e-9, 0.9 / K, 50)
+    assert np.allclose(
+        inv_cooperative_model_n(c_monomer, K, sigma, 2),
+        inv_cooperative_model(c_monomer, K, sigma),
+        rtol=1e-12,
+        atol=0.0,
+    ), "inverse mismatch between nuc_size=2 and basic cooperative model"
 
 
 def test_temp_cooperative_model():

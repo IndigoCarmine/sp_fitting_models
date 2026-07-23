@@ -198,9 +198,27 @@ fn temp_coop_iso_model(
     Ok(result)
 }
 
-// ==================== Cooperative Model (n=3) ====================
+// ==================== Cooperative Model (nucleus size N) ====================
 
 /// Calculate the total concentration from monomer concentration (inverse model).
+///
+/// Nucleation–elongation model with an arbitrary nucleus size `N = nuc_size` (N >= 2):
+/// a species of size `s` carries the cooperativity penalty `sigma^(min(s, N) - 1)`.
+/// With `x = k * c_monomer`, the concentration of an `s`-mer is
+/// `(sigma^(min(s, N) - 1) / k) * x^s`, so the total (monomer-unit) concentration is
+///
+///   c_tot = c_monomer + sum_{s>=2} s * (sigma^(min(s, N) - 1) / k) * x^s
+///
+/// This is evaluated as the closed-form elongation term (which assumes `sigma^(N-1)`
+/// for every `s >= 2`) plus a finite correction over the nucleus interior `s = 2 ..= N-1`:
+///
+///   c_tot = c_monomer
+///         + (sigma^(N-1) / k) * x^2 * (2 - x) / (1 - x)^2                    // elongation
+///         + (1 / k) * sum_{s=2}^{N-1} s * (sigma^(s-1) - sigma^(N-1)) * x^s  // nucleus correction
+///
+/// The multiplicity factor `s` (from summing `s * [M_s]`) applies to the correction as
+/// well as the elongation term. For `N = 2` the correction sum is empty and this reduces
+/// exactly to the basic cooperative model (`inv_cooperative_model`).
 fn inv_cooperative_model_n(
     c_monomer: f64,
     k: f64,
@@ -212,26 +230,33 @@ fn inv_cooperative_model_n(
     }
     let ck = k * c_monomer;
     if ck >= 1.0 {
-        return Ok(0.0);
+        // c_tot diverges to +infinity as ck -> 1^-. Returning +infinity (rather than an
+        // error or 0.0) keeps the bisection in `cooperative_model_n` robust and accurate at
+        // full aggregation: f_mid = +inf - conc > 0 correctly brackets the root just below
+        // the singularity, so x_high is pulled down toward the true free-monomer value.
+        return Ok(f64::INFINITY);
     }
 
     let denominator = 1.0 - ck;
+    let sigma_pow_max = sigma.powi(nuc_size as i32 - 1); // sigma^(N-1)
 
-    // additional term for n >= 3,  sum (sigma^(n-1) - sigma) / k * cK^n
-    let mut additional_term = 0.0;
-    let mut ck_pow = ck * ck;
-    let mut sigma_pow = sigma;
-    let sigma_pow_max = sigma.powi(nuc_size as i32 - 1);
+    // Closed-form elongation term: uses sigma^(N-1) for every s >= 2.
+    let elongation = sigma_pow_max / k * (ck * ck * (2.0 - ck)) / (denominator * denominator);
 
-    for _ in 1..=nuc_size - 1 {
+    // Correction over the nucleus interior s = 2 ..= N-1, restoring the multiplicity
+    // factor s and the correct penalty sigma^(s-1). The s = N term is zero, so the loop
+    // stops at N-1; for N = 2 the loop body never runs and correction stays 0.
+    let mut correction = 0.0;
+    let mut ck_pow = ck * ck; // x^s, starting at s = 2
+    let mut sigma_pow = sigma; // sigma^(s-1), starting at s = 2 -> sigma^1
+    for s in 2..nuc_size {
+        correction += (s as f64) * (sigma_pow - sigma_pow_max) * ck_pow;
         ck_pow *= ck;
         sigma_pow *= sigma;
-        additional_term += (sigma_pow - sigma_pow_max) / k * ck_pow;
     }
+    correction /= k;
 
-    Ok(c_monomer
-        + sigma_pow_max / k * (ck * ck * (2.0 - ck)) / (denominator * denominator)
-        + additional_term)
+    Ok(c_monomer + elongation + correction)
 }
 
 /// Calculate the aggregation from total concentration (bisection method).

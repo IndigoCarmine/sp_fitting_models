@@ -10,21 +10,41 @@ def inv_cooperative_model_n(
     c_monomer: npt.NDArray[np.number], K: float, sigma: float, nuc_size: int
 ) -> npt.NDArray[np.number]:
     """
-    Calculate total concentration from monomer concentration (inverse model). nucleation size is 2.
+    Calculate total concentration from monomer concentration (inverse model).
+
+    Nucleation-elongation model with an arbitrary nucleus size ``N = nuc_size`` (``N >= 2``):
+    a species of size ``s`` carries the cooperativity penalty ``sigma**(min(s, N) - 1)``.
+    With ``cK = K * c_monomer`` the total (monomer-unit) concentration is::
+
+        c_tot = c_monomer
+              + sigma**(N-1) / K * cK**2 * (2 - cK) / (1 - cK)**2                   # elongation
+              + 1 / K * sum_{s=2}^{N-1} s * (sigma**(s-1) - sigma**(N-1)) * cK**s   # nucleus correction
+
+    The multiplicity factor ``s`` (from summing ``s * [M_s]``) applies to the correction
+    as well as the elongation term. For ``N = 2`` the correction sum is empty and this
+    reduces exactly to the basic cooperative model (:func:`inv_cooperative_model`). This
+    matches the Rust implementation used by the forward solver ``cooperative_model_n``.
     """
+    if nuc_size < 2:
+        raise ValueError("nuc_size must be at least 2 for the cooperative_n model.")
     c_monomer = np.asarray(c_monomer, dtype=float)
     if K == 0:
         return c_monomer
     cK = K * c_monomer
-    # if np.any(cK >= 1):
-    #     raise ValueError("K * c_monomer must be less than 1 for the cooperative model.")
-    additional = 0.0
-    if nuc_size < 2:
-        raise ValueError("nuc_size must be at least 2 for the cooperative_n model.")
+    if np.any(cK >= 1):
+        raise ValueError("K * c_monomer must be less than 1 for the cooperative model.")
 
-    for n in range(1, nuc_size - 1):
-        additional += (sigma**n - sigma ** (nuc_size - 1)) / K * cK ** (n + 1)
-    return c_monomer + sigma ** (nuc_size - 1) / K * (cK**2 * (2 - cK)) / (1 - cK) ** 2 + additional
+    sigma_pow_max = sigma ** (nuc_size - 1)  # sigma^(N-1)
+    elongation = sigma_pow_max / K * (cK**2 * (2 - cK)) / (1 - cK) ** 2
+
+    # Correction over the nucleus interior s = 2 .. N-1. The s = N term is zero, so the
+    # loop stops at N-1; for N = 2 it does not run and the correction stays zero.
+    correction = np.zeros_like(c_monomer)
+    for s in range(2, nuc_size):
+        correction += s * (sigma ** (s - 1) - sigma_pow_max) * cK**s
+    correction /= K
+
+    return c_monomer + elongation + correction
 
 
 def cooperative_model_n(
@@ -46,7 +66,7 @@ def cooperative_model_n(
     sigma : float | np.number
         The cooperativity parameter for the cooperative pathway.
     nuc_size : int
-        The nucleation size for the cooperative model (must be at least 3).
+        The nucleation size for the cooperative model (must be at least 2).
     num_itr : int, optional
         Number of bisection iterations (default: 100).
 
@@ -92,7 +112,7 @@ def temp_cooperative_model_n(
     scaler : float, optional
         Scaling factor for the output (default: 1).
     nuc_size : int, optional
-        The nucleation size for the cooperative model (must be at least 3).
+        The nucleation size for the cooperative model (must be at least 2).
 
     Returns
     -------
