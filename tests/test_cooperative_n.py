@@ -12,6 +12,8 @@ from sp_fitting_models.models import (
     cooperative_model_n,
     cooperative_model,
     inv_cooperative_model,
+    inv_isodesmic_model,
+    isodesmic_model,
 )
 
 
@@ -115,6 +117,42 @@ def test_cooperative_n_reduces_to_basic_at_n2():
         rtol=1e-12,
         atol=0.0,
     ), "inverse mismatch between nuc_size=2 and basic cooperative model"
+
+
+def test_cooperative_n_reduces_to_isodesmic_at_sigma1():
+    """
+    At sigma = 1 the cooperativity penalty sigma**(min(s, N) - 1) equals 1 for every
+    species, so the nucleation-elongation distribution [M_s] = K**(s-1) * c_m**s becomes
+    identical to the isodesmic one, independently of the nucleus size N. Both the inverse
+    model and the forward solver must therefore coincide with the isodesmic model to
+    (near) machine precision for every N.
+    """
+    K = 1.0e5
+
+    # Inverse model: total concentration from monomer concentration. This is an exact
+    # algebraic identity (the nucleus correction vanishes and the elongation term reduces
+    # to the isodesmic closed form), so it holds to essentially machine precision.
+    c_monomer = np.linspace(1e-9, 0.99 / K, 500)
+    iso_ctot = inv_isodesmic_model(c_monomer, K)
+    for N in [2, 3, 4, 5, 8]:
+        coop_ctot = inv_cooperative_model_n(c_monomer, K, sigma=1.0, nuc_size=N)
+        max_rel = np.max(np.abs(coop_ctot - iso_ctot) / iso_ctot)
+        assert np.allclose(coop_ctot, iso_ctot, rtol=1e-12, atol=0.0), (
+            f"inverse model disagrees with isodesmic at sigma=1 for nuc_size={N} "
+            f"(max rel diff {max_rel:.2e})"
+        )
+
+    # Forward solver: aggregated fraction from total concentration. The cooperative solver
+    # uses bisection while the isodesmic reference uses the closed-form root, so they agree
+    # only to bisection precision (still ~1e-15 in practice).
+    c_tot = np.linspace(1, 1000, 50) * 1e-6
+    for N in [2, 3, 4, 5, 8]:
+        for c in c_tot:
+            agg_coop = cooperative_model_n(float(c), K, 1.0, N)
+            agg_iso = float(isodesmic_model(float(c), K))
+            assert agg_coop == pytest.approx(agg_iso, abs=1e-9, rel=0), (
+                f"forward solver disagrees with isodesmic at sigma=1 for nuc_size={N}, c={c}"
+            )
 
 
 def test_temp_cooperative_model():

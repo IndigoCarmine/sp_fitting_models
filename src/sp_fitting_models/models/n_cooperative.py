@@ -39,9 +39,17 @@ def inv_cooperative_model_n(
 
     # Correction over the nucleus interior s = 2 .. N-1. The s = N term is zero, so the
     # loop stops at N-1; for N = 2 it does not run and the correction stays zero.
+    #
+    # The naive factor ``sigma**(s-1) - sigma_pow_max`` cancels catastrophically as
+    # sigma -> 1 (both powers -> 1), losing up to ~7 digits near sigma = 1 - 1e-8.
+    # Rewrite it as ``sigma**(s-1) * (1 - sigma**(N-s))`` and evaluate ``1 - sigma**m``
+    # cancellation-free via ``-expm1(m * log(sigma))``, taking ``log(sigma) =
+    # log1p(sigma - 1)`` so the log stays accurate near sigma = 1.
+    ln_sigma = np.log1p(sigma - 1.0)  # = log(sigma), accurate for sigma ~ 1
     correction = np.zeros_like(c_monomer)
     for s in range(2, nuc_size):
-        correction += s * (sigma ** (s - 1) - sigma_pow_max) * cK**s
+        one_minus_sigma_pow = -np.expm1((nuc_size - s) * ln_sigma)  # 1 - sigma**(N-s)
+        correction += s * sigma ** (s - 1) * one_minus_sigma_pow * cK**s
     correction /= K
 
     return c_monomer + elongation + correction

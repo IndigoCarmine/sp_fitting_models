@@ -246,11 +246,20 @@ fn inv_cooperative_model_n(
     // Correction over the nucleus interior s = 2 ..= N-1, restoring the multiplicity
     // factor s and the correct penalty sigma^(s-1). The s = N term is zero, so the loop
     // stops at N-1; for N = 2 the loop body never runs and correction stays 0.
+    //
+    // The naive factor `sigma^(s-1) - sigma^(N-1)` cancels catastrophically as sigma -> 1
+    // (both powers -> 1), losing up to ~7 digits near sigma = 1 - 1e-8. Rewrite it as
+    //   sigma^(s-1) - sigma^(N-1) = sigma^(s-1) * (1 - sigma^(N-s))
+    // and evaluate `1 - sigma^m` cancellation-free via -expm1(m * ln(sigma)), using
+    // ln(sigma) = ln_1p(sigma - 1) so the log itself stays accurate near sigma = 1.
+    let ln_sigma = (sigma - 1.0).ln_1p(); // = ln(sigma), accurate for sigma ~ 1
     let mut correction = 0.0;
     let mut ck_pow = ck * ck; // x^s, starting at s = 2
     let mut sigma_pow = sigma; // sigma^(s-1), starting at s = 2 -> sigma^1
     for s in 2..nuc_size {
-        correction += (s as f64) * (sigma_pow - sigma_pow_max) * ck_pow;
+        let m = (nuc_size - s) as f64; // N - s >= 1
+        let one_minus_sigma_pow = -(m * ln_sigma).exp_m1(); // 1 - sigma^(N-s)
+        correction += (s as f64) * sigma_pow * one_minus_sigma_pow * ck_pow;
         ck_pow *= ck;
         sigma_pow *= sigma;
     }
