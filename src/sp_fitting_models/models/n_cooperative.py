@@ -128,15 +128,10 @@ def temp_cooperative_model_n(
         Cooperative aggregation values.
     """
     Temp = np.asarray(Temp, dtype=float)
-    try:
-        result = _temp_cooperative_model_n(
-            Temp.tolist(), float(deltaH), float(deltaS), float(deltaHnuc), float(c_tot), float(scaler), nuc_size
-        )
-        return np.array(result)
-    except ValueError:
-        raise ValueError(
-            "cannot use temp_cooperative_model_n with the given parameters. Please check the parameters and try again."
-        )
+    result = _temp_cooperative_model_n(
+        Temp.tolist(), float(deltaH), float(deltaS), float(deltaHnuc), float(c_tot), float(scaler), nuc_size
+    )
+    return np.array(result)
 
 
 if __name__ == "__main__":

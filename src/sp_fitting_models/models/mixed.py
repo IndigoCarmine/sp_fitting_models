@@ -105,22 +105,14 @@ def temp_coop_iso_model(
         Mixed cooperative-isodesmic aggregation values.
     """
     Temp = np.asarray(Temp, dtype=float)
-    try:
-        result = _temp_coop_iso_model(
-            Temp.tolist(),
-            float(deltaH_iso),
-            float(deltaS_iso),
-            float(deltaH_coop),
-            float(deltaS_coop),
-            float(deltaHnuc_coop),
-            float(c_tot),
-            float(scaler),
-        )
-        return np.array(result)
-    except ValueError:
-        from .models_old.mixed import temp_coop_iso_model as _temp_coop_iso_model_old
-
-        try:
-            return _temp_coop_iso_model_old(Temp, deltaH_iso, deltaS_iso, deltaH_coop, deltaS_coop, deltaHnuc_coop, c_tot, scaler)
-        except ValueError:
-            return np.zeros_like(Temp, dtype=float) * float(scaler)
+    result = _temp_coop_iso_model(
+        Temp.tolist(),
+        float(deltaH_iso),
+        float(deltaS_iso),
+        float(deltaH_coop),
+        float(deltaS_coop),
+        float(deltaHnuc_coop),
+        float(c_tot),
+        float(scaler),
+    )
+    return np.array(result)

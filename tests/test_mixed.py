@@ -88,12 +88,11 @@ def test_temp_mixed_model():
     return fig
 
 
-@pytest.mark.xfail(reason="Known issue: low deltaHnuc keeps non-zero high-temperature aggregation in mixed model")
 def test_mixed_high_temp_should_approach_zero_for_low_deltaHnuc():
     """
-    Investigative test for the reported anomaly:
-    For low deltaHnuc (0-6000 J/mol), high-temperature aggregation is expected to
-    approach zero, but current implementation keeps substantial residual aggregation.
+    Regression test: for low deltaHnuc (0-6000 J/mol), high-temperature aggregation must
+    approach zero. Previously the bisection bracket [0, 1/K] was far too wide when K was
+    small, so 100 iterations left a substantial spurious residual aggregation.
     """
     temps = np.linspace(280, 400, 200)
 
